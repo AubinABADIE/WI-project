@@ -3,6 +3,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.log4j.{Level, Logger}
 import scala.collection.immutable.HashMap
 import org.apache.spark.sql.functions._
+import scala.collection.mutable
 
 object Main extends App {
 
@@ -19,42 +20,38 @@ object Main extends App {
       .appName("Cortex")
       .getOrCreate
 
+    import spark.implicits._ // << add this after defining spark
+
     val df = spark
       .read
       .option("header", "true")
       .option("delimiter", ",")
       .option("inferSchema", "true")
       .json("data/data-students.json")
-    import spark.implicits._ // << add this
 
-
-    //df.show(20)
-
-    /**
-     * A blessed alternative => using a hash map and literally map the values on the
-     *  dataframe to a new value. I couldnt gat it to work (missing encoders?) but give it
-     *  a shot if you think you can!
-     *
      val osNames = HashMap(
-                     "Android" -> "android",
-                     "iOS" -> "ios",
-                     "WindowsMobile" -> "windows",
-                     "WindowsPhone" -> "windows",
-                     "Windows Phone OS" -> "windows",
-                     "Windows Mobile OS" -> "windows")
-     */
+        "android" -> "android",
+        "Android" -> "android",
+        "ios" -> "ios",
+        "iOS" -> "ios",
+        "WindowsMobile" -> "windows",
+        "Windows" -> "windows",
+        "windows" -> "windows",
+        "WindowsPhone" -> "windows",
+        "Windows Phone OS" -> "windows",
+        "Windows Mobile OS" -> "windows",
+        "other" -> "other",
+        "Unknown" -> "other",
+        "Rim" -> "other",
+        "WebOS" -> "other",
+        "Symbian" -> "other",
+        "Bada" -> "other",
+        "blackberry" -> "other")
 
-
-    val df2 = df.filter(row => row.getAs("os") != null
-                                          && row.getAs("os") != "other"
-                                          && row.getAs("os") != "Unknown")
-                .withColumn("os", when($"os" === "Android", "android")
-                                            .otherwise(when($"os" === "iOS", "ios")
-                                                .otherwise(when($"os" === "WindowsMobile", "windows")
-                                                  .otherwise(when($"os" === "WindowsPhone", "windows")
-                                                    .otherwise(when($"os" === "Windows Phone OS", "windows")
-                                                      .otherwise(when($"os" === "Windows Mobile OS", "windows")
-                                                        .otherwise($"os")))))))
+    val df2 = df.withColumn("os", udf((elem: String) => {
+      if (elem == null) "other"
+      else osNames(elem) 
+    }).apply(col("os")))
 
     df2.select("os").distinct().show()
     df2.show(10)
