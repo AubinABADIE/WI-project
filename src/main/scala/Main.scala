@@ -84,7 +84,19 @@ object Main extends App {
     val df4 = df3
       .withColumn("interestsAsNames", array_distinct(codeToInterestUDF))
 
-    df4.show(10)
+    val mediasMap = df4
+      .select("media")
+      .distinct()
+      .collect()
+      .map(element => element.get(0))
+      .zip(Stream from 1)
+      .map(mediaTuple => mediaTuple._1 -> mediaTuple._2)
+      .toMap
+
+    val df5 = df4
+      .withColumn("media", udf((elem: String) => mediasMap(elem)).apply(col("media")))
+
+    df5.show(10)
     spark.close()
   }
 }
