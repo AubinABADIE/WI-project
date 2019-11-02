@@ -29,32 +29,62 @@ object Main extends App {
       .option("inferSchema", "true")
       .json("data/data-students.json")
 
-     val osNames = HashMap(
-        "android" -> "android",
-        "Android" -> "android",
-        "ios" -> "ios",
-        "iOS" -> "ios",
-        "WindowsMobile" -> "windows",
-        "Windows" -> "windows",
-        "windows" -> "windows",
-        "WindowsPhone" -> "windows",
-        "Windows Phone OS" -> "windows",
-        "Windows Mobile OS" -> "windows",
-        "other" -> "other",
-        "Unknown" -> "other",
-        "Rim" -> "other",
-        "WebOS" -> "other",
-        "Symbian" -> "other",
-        "Bada" -> "other",
-        "blackberry" -> "other")
+    val interests = spark
+      .read
+      .option("header", "true")
+      .option("delimiter", ",")
+      .option("inferSchema", "true")
+      .csv("data/interests.csv")
 
+    val interestsCodes = interests
+      .as[(String, String)]
+      .collect
+      .toMap
+
+    val codeToInterestUDF = udf((interestsArray: mutable.WrappedArray[String]) => {
+      if (interestsArray == null) interestsArray
+      else {
+        interestsArray.map((code: String) => {
+          if (!code.startsWith("IAB")) code.toLowerCase //Not an interest code
+          else interestsCodes(code).toLowerCase
+        })
+      }
+    }).apply(col("interests"))
+
+    val osNames = HashMap(
+      "android" -> "android",
+      "Android" -> "android",
+      "ios" -> "ios",
+      "iOS" -> "ios",
+      "WindowsMobile" -> "windows",
+      "Windows" -> "windows",
+      "windows" -> "windows",
+      "WindowsPhone" -> "windows",
+      "Windows Phone OS" -> "windows",
+      "Windows Mobile OS" -> "windows",
+      "other" -> "other",
+      "Unknown" -> "other",
+      "Rim" -> "other",
+      "WebOS" -> "other",
+      "Symbian" -> "other",
+      "Bada" -> "other",
+      "blackberry" -> "other")
+
+    //OS names cleaning
     val df2 = df.withColumn("os", udf((elem: String) => {
       if (elem == null) "other"
       else osNames(elem) 
     }).apply(col("os")))
 
-    df2.select("os").distinct().show()
-    df2.show(10)
+    //Converting the interests column to an array of interests instead of interests separated by ","
+    val df3 = df2
+      .withColumn("interests", split($"interests", ",").cast("array<String>"))
+
+    //Converting interest codes to their names and sorting them to avoid redundant data
+    val df4 = df3
+      .withColumn("interestsAsNames", array_distinct(codeToInterestUDF))
+
+    df4.show(10)
     spark.close()
   }
 }
