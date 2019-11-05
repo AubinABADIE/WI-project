@@ -45,6 +45,7 @@ object Main extends App {
       .collect
       .toMap
 
+
     val codeToInterestUDF = udf((interestsArray: mutable.WrappedArray[String]) => {
       if (interestsArray == null) interestsArray
       else {
@@ -85,7 +86,16 @@ object Main extends App {
     val df5 = df4
       .withColumn("media", udf((elem: String) => mediasMap(elem)).apply(col("media")))
 
-    df5.show(10)
+
+    val df6 = df5.withColumn("type", udf((elem: String) => {
+      if (elem == null) "-1"
+      else if(elem == "CLICK") "4"
+      else elem
+    }).apply(col("type")))
+
+
+    //df6.show(20)
+    df6.select("interests").distinct().show()
     spark.close()
   }
 }
