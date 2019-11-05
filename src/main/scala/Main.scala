@@ -55,29 +55,14 @@ object Main extends App {
       }
     }).apply(col("interests"))
 
-    val osNames = HashMap(
-      "android" -> "android",
-      "Android" -> "android",
-      "ios" -> "ios",
-      "iOS" -> "ios",
-      "WindowsMobile" -> "windows",
-      "Windows" -> "windows",
-      "windows" -> "windows",
-      "WindowsPhone" -> "windows",
-      "Windows Phone OS" -> "windows",
-      "Windows Mobile OS" -> "windows",
-      "other" -> "other",
-      "Unknown" -> "other",
-      "Rim" -> "other",
-      "WebOS" -> "other",
-      "Symbian" -> "other",
-      "Bada" -> "other",
-      "blackberry" -> "other")
-
     //OS names cleaning
     val df2 = df.withColumn("os", udf((elem: String) => {
-      if (elem == null) "other"
-      else osNames(elem) 
+      elem match {
+        case x if x.toLowerCase.contains("android") => "android"
+        case x if x.toLowerCase.contains("ios") => "ios"
+        case x if x.toLowerCase.contains("windows") => "windows"
+        case _ => "other"
+      }
     }).apply(col("os")))
 
     //Converting the interests column to an array of interests instead of interests separated by ","
