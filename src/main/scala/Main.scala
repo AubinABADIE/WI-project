@@ -28,6 +28,10 @@ object Main extends App {
       .option("delimiter", ",")
       .option("inferSchema", "true")
       .json("data/data-students.json")
+      .drop("exchange")
+      .drop("bidfloor")
+      .drop("timestamp")
+      .drop("impid")
 
     val interests = spark
       .read
