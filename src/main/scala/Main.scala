@@ -91,13 +91,6 @@ object Main extends App {
     val df5 = df4
       .withColumn("media", udf((elem: String) => mediasMap(elem)).apply(col("media")))
 
-
-    val indexer = new StringIndexer()
-      .setInputCol("type")
-      .setOutputCol("type")
-
-    val df6 = indexer.fit(df5).transform(df5)
-
     val interestIndex = df5
       .select("interestsAsNames")
       .distinct()
@@ -108,43 +101,10 @@ object Main extends App {
       .map(interests => interests._1 -> interests._2)
       .toMap
 
-    val df7 = df5
+    val df6 = df5
       .withColumn("interestsIndex", udf((elem: mutable.WrappedArray[String]) =>
         elem.map(e => interestIndex(e))).apply(col("interestsAsNames")))
-      .drop("city")
-      .drop("size")
-      .drop("interests")
-      .drop("interestsAsNames")
-      .drop("network")
-      .drop("publisher")
-
-    val assembler = new VectorAssembler()
-      .setInputCols(Array("user", "interestsIndex", "type", "os", "appOrSite"))
-      .setOutputCol("features")
-
-    val b = new StringIndexer()
-      .setInputCol("type")
-      .setOutputCol("type")
-
-    val data = assembler.transform(df7)
-
-    val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3), seed = 1234L)
-
-    // Train a NaiveBayes model.
-    val model = new NaiveBayes()
-      .fit(trainingData)
-
-    // Select example rows to display.
-    val predictions = model.transform(testData)
-    predictions.show()
-
-    // Select (prediction, true label) and compute test error
-    val evaluator = new MulticlassClassificationEvaluator()
-      .setLabelCol("label")
-      .setPredictionCol("prediction")
-      .setMetricName("accuracy")
-    val accuracy = evaluator.evaluate(predictions)
-    println(s"Test set accuracy = $accuracy")
+     df6.show()
 
     spark.close()
   }
