@@ -4,6 +4,11 @@ import org.apache.log4j.{Level, Logger}
 import scala.collection.immutable.HashMap
 import org.apache.spark.sql.functions._
 import scala.collection.mutable
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.classification.NaiveBayes
+import org.apache.spark.ml.feature.StringIndexer
 
 object Main extends App {
 
@@ -47,7 +52,7 @@ object Main extends App {
 
 
     val codeToInterestUDF = udf((interestsArray: mutable.WrappedArray[String]) => {
-      if (interestsArray == null) interestsArray
+      if (interestsArray == null) mutable.WrappedArray.empty[String]
       else {
         interestsArray.map((code: String) => {
           if (!code.startsWith("IAB")) code.toLowerCase //Not an interest code
@@ -87,15 +92,60 @@ object Main extends App {
       .withColumn("media", udf((elem: String) => mediasMap(elem)).apply(col("media")))
 
 
-    val df6 = df5.withColumn("type", udf((elem: String) => {
-      if (elem == null) "-1"
-      else if(elem == "CLICK") "4"
-      else elem
-    }).apply(col("type")))
+    val indexer = new StringIndexer()
+      .setInputCol("type")
+      .setOutputCol("type")
 
+    val df6 = indexer.fit(df5).transform(df5)
 
-    //df6.show(20)
-    df6.select("interests").distinct().show()
+    val interestIndex = df5
+      .select("interestsAsNames")
+      .distinct()
+      .collect()
+      .flatMap(element => element.get(0).asInstanceOf[mutable.WrappedArray[String]])
+      .distinct
+      .zip(Stream from 1)
+      .map(interests => interests._1 -> interests._2)
+      .toMap
+
+    val df7 = df5
+      .withColumn("interestsIndex", udf((elem: mutable.WrappedArray[String]) =>
+        elem.map(e => interestIndex(e))).apply(col("interestsAsNames")))
+      .drop("city")
+      .drop("size")
+      .drop("interests")
+      .drop("interestsAsNames")
+      .drop("network")
+      .drop("publisher")
+
+    val assembler = new VectorAssembler()
+      .setInputCols(Array("user", "interestsIndex", "type", "os", "appOrSite"))
+      .setOutputCol("features")
+
+    val b = new StringIndexer()
+      .setInputCol("type")
+      .setOutputCol("type")
+
+    val data = assembler.transform(df7)
+
+    val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3), seed = 1234L)
+
+    // Train a NaiveBayes model.
+    val model = new NaiveBayes()
+      .fit(trainingData)
+
+    // Select example rows to display.
+    val predictions = model.transform(testData)
+    predictions.show()
+
+    // Select (prediction, true label) and compute test error
+    val evaluator = new MulticlassClassificationEvaluator()
+      .setLabelCol("label")
+      .setPredictionCol("prediction")
+      .setMetricName("accuracy")
+    val accuracy = evaluator.evaluate(predictions)
+    println(s"Test set accuracy = $accuracy")
+
     spark.close()
   }
 }

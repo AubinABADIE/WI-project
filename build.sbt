@@ -7,6 +7,7 @@ lazy val root = (project in file("."))
     name:="WI-Project",
     libraryDependencies ++= Seq(
       spark,
-      sparkSql
+      sparkSql,
+      sparkMLlib
     )
   )
