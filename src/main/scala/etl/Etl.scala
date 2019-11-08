@@ -71,9 +71,15 @@ object Etl {
         val df6 = df5
             .withColumn("interestsIndex", udf((elem: mutable.WrappedArray[String]) =>
                 elem.map(e => interestIndex(e))).apply(col("interestsAsNames")))
+
+        val df7 = df6
+            .withColumn("located", udf((elem: String) => {
+                elem match {
+                case null => "not located"
+                case _ => "located"
+                }
+            }).apply(col("city")))
         
-        return df6
+        return df7
     }
-
-
 }
