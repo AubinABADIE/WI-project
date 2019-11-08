@@ -104,7 +104,16 @@ object Main extends App {
     val df6 = df5
       .withColumn("interestsIndex", udf((elem: mutable.WrappedArray[String]) =>
         elem.map(e => interestIndex(e))).apply(col("interestsAsNames")))
-     df6.show()
+
+    val df7 = df6
+      .withColumn("located", udf((elem: String) => {
+        elem match {
+          case null => "not located"
+          case _ => "located"
+        }
+      }).apply(col("city")))
+
+     df7.show()
 
     spark.close()
   }
