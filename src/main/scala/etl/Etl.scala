@@ -111,7 +111,7 @@ object Etl {
           }
       })
 
-    val columns: Array[String] = df9
+    val columns: Array[String] = df10
       .columns
 
     val finalDFAssembler = new VectorAssembler()
