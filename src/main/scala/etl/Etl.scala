@@ -96,22 +96,26 @@ object Etl {
           if (array.contains(interest._2)) 1 else 0
         }).apply(col("interestsIndex")))
       })
+      .drop("interests")
+      .drop("interestsAsNames")
+      .drop("interestsIndex")
 
     val df10 = df9
       .columns
       .foldLeft(df9)((df, col) => {
-        if(col == "interests" || col == "interestsAsNames" || col == "interestsIndex" || col.startsWith("interest_")) df
+        if(col.startsWith("interest_")) df
         else {
           new StringIndexer()
             .setInputCol(col)
             .setOutputCol(col + "Index")
+            .setHandleInvalid("keep")
             .fit(df)
             .transform(df)
             .drop(col)
           }
       })
 
-    val columns: Array[String] = df9
+    val columns: Array[String] = df10
       .columns
 
     val finalDFAssembler = new VectorAssembler()
