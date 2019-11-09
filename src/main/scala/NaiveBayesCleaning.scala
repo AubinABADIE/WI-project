@@ -8,9 +8,10 @@ object NaiveBayesCleaning {
 
   def clean(spark: SparkSession, dataFrame: DataFrame) : DataFrame = {
     import spark.implicits._
+
     /**
-      * City not localized -> 1.0
-      * City localized -> 2.0
+      * City not located -> 1.0
+      * City located -> 2.0
       */
     val city = dataFrame.
       withColumn("city", udf((elem: String) =>
@@ -130,7 +131,23 @@ object NaiveBayesCleaning {
     val os = typeCol
       .withColumn("os", udf((elem: String) => osMap(elem)).apply(col("os")))
 
-    os
+
+    /**
+      * Media cleaning to Naive Bayes
+      */
+    val mediasMap = os
+      .select("media")
+      .distinct()
+      .collect()
+      .map(element => element.get(0))
+      .zip(Stream from 1)
+      .map(mediaTuple => mediaTuple._1 -> mediaTuple._2.toDouble)
+      .toMap
+
+    val media = os
+      .withColumn("media", udf((elem: String) => mediasMap(elem)).apply(col("media")))
+
+    media
 
   }
 }

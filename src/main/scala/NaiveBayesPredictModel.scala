@@ -1,37 +1,44 @@
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SparkContext}
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
+import org.apache.spark.mllib.classification.{NaiveBayes}
+import org.apache.spark.mllib.evaluation.MulticlassMetrics
 
 object NaiveBayesPredictModel {
   def NaiveBayerPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     import spark.implicits._
 
-    //All features must be in double type
-    val featuresCols = Array("appOrSite", "city", "media", "network", "os", "publisher", "type", "user") //size, interests
+    val featuresCols = Array("appOrSite", "city", "media", "network", "os", "publisher", "type", "user")
+    //val featuresCols = Array("appOrSite", "city", "media", "network", "os", "publisher", "type", "user", "i1","i2","i3","i4","i5","i6", "i7","i8","i9","i10","i11","i12","i13", "i14","i15","i16","i17","i18","i19", "i20","i21","i22","i23","i24","i25","i26")
     val assembler = new VectorAssembler()
       .setInputCols(featuresCols)
       .setOutputCol("features")
 
-    // Keep only features and label
-    val labeled = assembler.transform(dataFrame).rdd.map(row => LabeledPoint(
-      row.getAs[Double]("label"),
-      row.getAs[org.apache.spark.mllib.linalg.Vector]("features")
-    ))
 
-    print(labeled)
+    //omg this is terrible
+    val labeled = assembler.transform(dataFrame).rdd.map(row =>{
+      val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
+      LabeledPoint(
+        row.getDouble(2), //2 is the index of label
+        org.apache.spark.mllib.linalg.Vectors.fromML(denseVector)
+      )
+    }
+    )
 
     val Array(trainingData, test) = labeled.randomSplit(Array(0.8, 0.2))
+    //trainingData.collect().take(10).foreach(println(_))
 
+    //NaiveBayes model
+    val model = NaiveBayes.train(trainingData)//, lambda = 1.0, modelType = "multinomial")
+    val predictedClassification = test.map( x => (model.predict(x.features), x.label))
+    val metrics = new MulticlassMetrics(predictedClassification)
 
-    val model = NaiveBayes.train(trainingData, lambda = 1.0, modelType = "multinomial")
+    val confusionMatrix = metrics.confusionMatrix
+    println("Confusion Matrix",confusionMatrix.asML)
 
-    val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
-    val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
+    val myModelStat=Seq(metrics.accuracy,metrics.weightedPrecision,metrics.weightedFMeasure,metrics.weightedRecall)
 
-    // Save and load model
-    model.save(sc, "data/myNaiveBayesModel")
-    val sameModel = NaiveBayesModel.load(sc, "data/myNaiveBayesModel")
+    myModelStat.foreach(println(_))
   }
 }
