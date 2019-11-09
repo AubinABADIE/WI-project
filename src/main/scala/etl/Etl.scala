@@ -83,7 +83,7 @@ object Etl {
       }).apply(col("city")))
 
     val df8 = df7
-      .withColumn("label", udf((elem: Boolean) => if (elem) 1 else 0).apply(col("label")))
+      .withColumn("label", udf((elem: Boolean) => if (elem) 1.0 else 0.0).apply(col("label")))
 
     interestIndex
       .foreach((elem) => {

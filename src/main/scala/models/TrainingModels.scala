@@ -42,26 +42,27 @@ object TrainingModels {
     logisticRegression(datas, spark)
   }
 
-  def logisticRegression(df: DataFrame, spark: SparkSession): Unit = {
+  def logisticRegression(df: DataFrame, spark: SparkSession): LogisticRegressionModel = {
     import spark.implicits._
     //Select features and label as resilient distributed dataset
     val data = df
       .select("features", "labelIndex")
+      .withColumnRenamed("labelIndex", "label")
 
     //Splits RDD into two datasets, one containing 80% of data for training and another one containing 20% for testing
     val datasets = data
       .randomSplit(Array(0.8,0.2), seed = 42)
-    val training = datasets(0).cache
+    val training = datasets(0).cache()
     val testing = datasets(1)
 
     //Model creation
     val model = new LogisticRegression()
-      .setLabelCol("labelIndex")
+      .setLabelCol("label")
       .setFeaturesCol("features")
       .setMaxIter(100)
       .fit(training)
 
-    println(s"Coefficients: ${model.coefficients} \nIntercept: ${model.intercept}")
+    // println(s"Coefficients: ${model.coefficients} \nIntercept: ${model.intercept}")
 
     val predict = model.transform(testing)
     val predictWithLabels = predict
