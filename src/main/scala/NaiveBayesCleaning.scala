@@ -119,7 +119,17 @@ object NaiveBayesCleaning {
       * windows -> 3.0
       * Other -> 4.0
       */
-    val osMap = typeCol
+    val osRename = typeCol.withColumn("os", udf((elem: String) => {
+      elem match {
+        case null => "other"
+        case x if x.toLowerCase().contains("android") => "android"
+        case x if x.toLowerCase().contains("ios") => "ios"
+        case x if x.toLowerCase().contains("windows") => "windows"
+        case _ => "other"
+      }
+    }).apply(col("os")))
+
+    val osMap = osRename
       .select("os")
       .distinct()
       .collect()
@@ -128,7 +138,7 @@ object NaiveBayesCleaning {
       .map(mediaTuple => mediaTuple._1 -> mediaTuple._2.toDouble)
       .toMap
 
-    val os = typeCol
+    val os = osRename
       .withColumn("os", udf((elem: String) => osMap(elem)).apply(col("os")))
 
 
@@ -147,7 +157,23 @@ object NaiveBayesCleaning {
     val media = os
       .withColumn("media", udf((elem: String) => mediasMap(elem)).apply(col("media")))
 
-    media
+    /**
+      * Exchange cleaning to Naive Bayes
+      */
+    val exchangeMap = media
+      .select("exchange")
+      .distinct()
+      .collect()
+      .map(element => element.get(0))
+      .zip(Stream from 1)
+      .map(mediaTuple => mediaTuple._1 -> mediaTuple._2.toDouble)
+      .toMap
+
+    val exchange = media
+      .withColumn("exchange", udf((elem: String) => exchangeMap(elem)).apply(col("exchange")))
+
+    exchange
+
 
   }
 }

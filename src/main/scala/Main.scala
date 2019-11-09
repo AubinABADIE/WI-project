@@ -1,12 +1,11 @@
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.functions._
-
-
 import NaiveBayesCleaning._
 import NaiveBayesPredictModel._
 import IntererestsCleaning._
+import LoadCleanedData.{result, sc, spark}
 
 object Main extends App {
 
@@ -34,15 +33,21 @@ object Main extends App {
       .option("delimiter", ",")
       .option("inferSchema", "true")
       .json("data/data-students.json")
-      .drop("exchange")
+      //.drop("exchange")
       .drop("bidfloor")
       .drop("timestamp")
       .drop("impid")
       .drop("size")
 
 
+    //Stratified sampling
+//    val trueValue = df.filter("label = true")
+//    val falseValue = df.filter("label = false").sample(0.030)
+//
+//    val df1 = trueValue.union(falseValue)
+
     println("Starting to generate interests")
-    val interestsStartTime = System.nanoTime()
+    var interestsStartTime = System.nanoTime()
 
     val dfInterests = cleanInterests(spark, df)
 
@@ -50,23 +55,35 @@ object Main extends App {
 
     println("Interests DONE, elapsed time: "+elapsedTimeInterests)
 
-    val df1 = dfInterests.drop(col("id"))
+    val df2 = dfInterests.drop(col("id"))
 
     println("Starting to generate double values for rows")
     val cleaningStartTime = System.nanoTime()
 
-    val df2 = clean(spark, df1)
+    val df3 = clean(spark, df2)
 
     val elapsedTimeCleaning = (System.nanoTime() - cleaningStartTime) / 1e9
     println("Cleaning DONE, elapsed time: "+ elapsedTimeCleaning)
 
-    val df3 = df2.drop(col("size")).drop(col("interests"))
+    val df4 = df3.drop(col("interests"))
 
-    df3.show()
+    println("Start to export CSV")
+    interestsStartTime = System.nanoTime()
 
-    df3.write.format("csv").save("data/values.csv")
-    //NaiveBayerPredictModel(spark, df8, sc)
+    df4.coalesce(1) //So just a single part- file will be created
+      .write.mode(SaveMode.Overwrite)
+      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+      .option("header","true") //Write the header
+      .csv("data/exportComplete.csv")
+
+    println("Export DONE, elapsed time: "+ ((System.nanoTime() - interestsStartTime) / 1e9))
+
+
+//    println("Start to create model Naive Bayes")
+//    interestsStartTime = System.nanoTime()
+//    NaiveBayerPredictModel(spark, df3, sc)
 //
+//    println("Model created, elapsed time: "+ ((System.nanoTime() - interestsStartTime) / 1e9))
 
     spark.stop()
     //spark.close()
