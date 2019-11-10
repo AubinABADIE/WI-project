@@ -34,7 +34,9 @@ object TrainingModels {
     val datas = Etl.apply(df, interests)
 
     // Apply the decision tree classifier
+    val decisionTreeModel = DecisionTreeMod.method(datas, spark)
 
-    /// Try to save it in a csv file ///
+    // Save model
+    decisionTreeModel.save("data/DecisionTreeModel")
   }
 }
