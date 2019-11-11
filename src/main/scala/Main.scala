@@ -238,7 +238,7 @@ object Main extends App {
 
       //RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Random forest prediction created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+      println("Random forest prediction DONE, CSV created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
     }
 
     val elapedStime = (System.nanoTime() - start) / 1e9
