@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-import org.apache.log4j.{Level, Logger}
-import models._
-
-=======
 import java.nio.file.{Files, Paths}
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -14,7 +8,6 @@ import NaiveBayesCleaning._
 import NaiveBayesPredictModel._
 import IntererestsCleaning._
 import LogisticRegressionModel._
->>>>>>> naiveBayes
 object Main extends App {
 
   override def main(args: Array[String]) {
@@ -55,11 +48,6 @@ object Main extends App {
       .appName("Cortex")
       .getOrCreate
 
-<<<<<<< HEAD
-    TrainingModels.trainModels(spark)
-
-    spark.close()
-=======
     import spark.implicits._ // << add this after defining spark
 
     val df = spark
@@ -136,6 +124,5 @@ object Main extends App {
 
 
     spark.stop()
->>>>>>> naiveBayes
   }
 }
