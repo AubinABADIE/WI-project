@@ -18,6 +18,8 @@ To reach the forecasting we have the following steps:
 
 ## How to use
 
+###Your input json file must be inside data folder
+
 Start sbt shell using
 * sbt
 
