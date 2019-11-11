@@ -25,7 +25,7 @@ object IntererestsCleaning {
     val interestsDataFrame = dataFrame.select($"interests")
     val interestsAsStr = interestsDataFrame.map(_.toString)
 
-    val iab1 = List("iab1", "arts", "entertainment", "movies","television","books & literature","music","celebrity fan/gossip","fine art","humor")
+    val iab1 = List("iab1", "arts", "entertainment", "movies","television","books", "literature", "music","celebrity fan/gossip","fine art","humor")
     val iab2 = List("iab2", "automotive", "luxury","motorcycles","crossover","car culture","certified pre-owned","sedan","road-side assistance","off-road vehicles","coupe","wagon","hybrid","vintage cars","auto parts","auto repair","performance vehicles","convertible","trucks & accessories","hatchback","minivan","buying/selling cars","pickup","diesel","electric vehicle")
     val iab3 = List("iab3", "business", "forestry","logistics","agriculture","human resources","biotech/biomedical","metals","green solutions","business software","construction","marketing","advertising","government")
     val iab4 = List("iab4", "careers", "u.s. military","job search","nursing","financial aid","job fairs","telecommuting","scholarships","career advice","career planning","resume writing/advice","college")
@@ -74,7 +74,7 @@ object IntererestsCleaning {
       tuple13
     })
 
-    val last13Inrests = interestsAsStr.map(value => {
+    val last13Interests = interestsAsStr.map(value => {
       var tuple13 = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
       val interestValue = value.toString.toLowerCase
 
@@ -96,7 +96,7 @@ object IntererestsCleaning {
     })
 
     val l1 = first13Interests.toDF("i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10", "i11", "i12", "i13")
-    val l2 = last13Inrests.toDF("i14", "i15", "i16", "i17", "i18", "i19", "i20", "i21", "i22", "i23", "i24", "i25", "i26")
+    val l2 = last13Interests.toDF("i14", "i15", "i16", "i17", "i18", "i19", "i20", "i21", "i22", "i23", "i24", "i25", "i26")
 
     val concatenatedValues = dataFrame.withColumn("id", monotonically_increasing_id())
       .join(l1.withColumn("id", monotonically_increasing_id()), Seq("id"))

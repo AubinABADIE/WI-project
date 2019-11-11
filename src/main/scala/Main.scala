@@ -5,8 +5,10 @@ import org.apache.spark.sql.functions._
 import NaiveBayesCleaning._
 import NaiveBayesPredictModel._
 import IntererestsCleaning._
-
-import scala.collection.mutable
+import LogisticRegressionModel._
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
 
 object Main extends App {
 
@@ -16,7 +18,7 @@ object Main extends App {
     var jsonFile = "data-students.json"
     var model = "naive"
 
-    if(args.isEmpty) println("Usage: ./jarFile jsonFile [option]\nOptions: \n\t* naive\n\t* lr")
+    if(args.isEmpty) println("Usage: ./jarFile jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* LogisticRegression --lr \n\t* RandomForest --rf")
     if(args.length == 2){
       jsonFile = args(0)
       model = args(1)
@@ -48,6 +50,12 @@ object Main extends App {
       .option("delimiter", ",")
       .option("inferSchema", "true")
       .json("data/"+jsonFile)
+        //.csv("data/exportCSVANOVA")
+        //.drop("interests")
+      .limit(1000)
+
+
+      //.json("data/"+jsonFile)
 
     println("Starting to generate interests")
     var interestsStartTime = System.nanoTime()
@@ -56,23 +64,24 @@ object Main extends App {
 
     val elapsedTimeInterests = (System.nanoTime() - interestsStartTime) / 1e9
 
-    println("Interests DONE, elapsed time: "+elapsedTimeInterests)
+    println("Interests DONE, elapsed time: "+(elapsedTimeInterests - (elapsedTimeInterests % 0.01))+"s")
 
+    //Drop generated ID column
     val df2 = dfInterests.drop(col("id"))
 
-    println("Starting to generate double values for rows")
+    println("Starting to clean dataset")
     val cleaningStartTime = System.nanoTime()
 
     val df3 = clean(spark, df2)
 
     val elapsedTimeCleaning = (System.nanoTime() - cleaningStartTime) / 1e9
-    println("Cleaning DONE, elapsed time: "+ elapsedTimeCleaning)
+    println("Cleaning DONE, elapsed time: "+ (elapsedTimeCleaning - (elapsedTimeCleaning % 0.01))+"s")
 
     /**
       * After ANOVA drop the following columns
-      * os, user, i1, i2, i3, i5, i10, i15, i18, i20, i21, i22, i23
+      * os, user, i5, i10, i15, i18, i20, i21, i22, i23
       */
-    val df4 = df3.drop("os", "user", "i5", "i10", "i15", "i18", "i20", "i21", "i22", "i23")
+    val df4 = df3.drop("os", "user", "i5", "i10", "i15", "i18", "i20", "i21", "i22", "i23", "interests")
 
 //    println("Start to export CSV")
 //    interestsStartTime = System.nanoTime()
@@ -81,16 +90,28 @@ object Main extends App {
 //      .write.mode(SaveMode.Overwrite)
 //      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
 //      .option("header","true") //Write the header
-//      .csv("data/exportCSV")
+//      .csv("data/exportCSVANOVA")
 //
-//    println("Export DONE, elapsed time: "+ ((System.nanoTime() - interestsStartTime) / 1e9))
+//    println("Export DONE, elapsed time: "+ (elapsedTimeInterests - (elapsedTimeInterests % 0.01))+"ms")
+
+    if(model == "naive"){
+      println("Start to create model Naive Bayes")
+      var modelStartTime = System.nanoTime()
+      NaiveBayesPredictModel.NaiveBayerPredictModel(spark, df4, sc)
+      val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+      println("Model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+    }else if(model == "lr"){
+      //df.show()
+
+      //LogisticRegressionModel.LogisticRegressionModel(spark, df, sc)
+      //RandomForestPredictModel.RandomForestPredictModel(spark, df, sc)
+
+    }
+
+    val elapedStime = (System.nanoTime() - start) / 1e9
+    println("End: "+ elapedStime)
 
 
-    println("Start to create model Naive Bayes")
-    interestsStartTime = System.nanoTime()
-    NaiveBayerPredictModel(spark, df4, sc)
-
-    println("Model created, elapsed time: "+ ((System.nanoTime() - interestsStartTime) / 1e9))
 
     spark.stop()
     //spark.close()
