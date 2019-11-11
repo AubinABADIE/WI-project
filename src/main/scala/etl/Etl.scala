@@ -117,6 +117,7 @@ object Etl {
 
     val columns: Array[String] = df10
       .columns
+      .filterNot(_ == "labelIndex")
 
     val finalDFAssembler = new VectorAssembler()
       .setInputCols(columns)
