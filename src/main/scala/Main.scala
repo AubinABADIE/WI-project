@@ -4,17 +4,20 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.functions._
-import NaiveBayesCleaning._
 import NaiveBayesPredictModel._
 import IntererestsCleaning._
-import LogisticRegressionModel._
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.mllib.classification.{LogisticRegressionModel, NaiveBayesModel}
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.tree.model.RandomForestModel
 object Main extends App {
 
   override def main(args: Array[String]) {
 
     val start = System.nanoTime()
     var jsonFile = "data-students.json"
-    var model = "lr" //rf
+    var model = "rf" //rf
 
     val message = "Usage: ./clickPredict jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample ./clickPredict data-students.json naive"
 
@@ -57,8 +60,7 @@ object Main extends App {
       .option("inferSchema", "true")
       .json("data/"+jsonFile)
       //.csv("data/exportCSVANOVA")
-      //.drop("interests")
-      //.limit(1000)
+      .limit(1000)
 
     println("Starting to generate interests")
     var interestsStartTime = System.nanoTime()
@@ -75,7 +77,7 @@ object Main extends App {
     println("Starting to clean dataset")
     val cleaningStartTime = System.nanoTime()
 
-    val df3 = clean(spark, df2)
+    val df3 = ETL.clean(spark, df2)
 
     val elapsedTimeCleaning = (System.nanoTime() - cleaningStartTime) / 1e9
     println("Cleaning DONE, elapsed time: "+ (elapsedTimeCleaning - (elapsedTimeCleaning % 0.01))+"s")
@@ -93,27 +95,148 @@ object Main extends App {
 //      .write.mode(SaveMode.Overwrite)
 //      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
 //      .option("header","true") //Write the header
-//      .csv("data/exportCSVANOVA")
-//
+//      .csv("data/exportCSV")
 //    println("Export DONE, elapsed time: "+ (elapsedTimeInterests - (elapsedTimeInterests % 0.01))+"ms")
 
     if(model == "naive"){
       println("Start to create model Naive Bayes")
       val modelStartTime = System.nanoTime()
-      NaiveBayesPredictModel.NaiveBayerPredictModel(spark, df4, sc)
+      val predictModel = NaiveBayesModel.load(sc, "data/naiveModel")
+      val columns: Array[String] = df4
+        .columns
+        .filterNot(_ == "label")
+
+      val finalDFAssembler = new VectorAssembler()
+        .setInputCols(columns)
+        .setOutputCol("features")
+        .setHandleInvalid("keep")
+
+      val labeled = finalDFAssembler.transform(df4).rdd.map(row =>{
+        val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
+        LabeledPoint(
+          row.getAs[Double]("label"),
+          org.apache.spark.mllib.linalg.Vectors.fromML(denseVector)
+        )
+      }
+      )
+
+      val prediction = labeled.map( x => (predictModel.predict(x.features), x.label))
+
+      val withoutLabel = df.drop("label").drop("size")
+
+      prediction.toDF("predict", "label").withColumn("id", monotonically_increasing_id())
+        .join(withoutLabel.withColumn("id", monotonically_increasing_id()), Seq("id"))
+        .drop("id")
+        .withColumn("label", udf((elem: Double) => {
+          if(elem == 1.0) true
+          else false
+        }).apply(col("predict")))
+        .drop("predict")
+        .coalesce(1) //So just a single part- file will be created
+        .write.mode(SaveMode.Overwrite)
+        .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+        .option("header","true") //Write the header
+        .csv("data/prediction")
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Naive Bayes model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+      println("Prediction done, CSV exported, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"s")
     }else if(model == "lr"){
-
-
       val modelStartTime = System.nanoTime()
-      LogisticRegressionModel.LogisticRegressionModel(spark, df4, sc)
+//      val lr = new LogisticRegression()
+//      val predictModel = LogisticRegressionModel.load(sc, "data/logisticRegressionModel")
+//
+//      val columnsLR = df4
+//        .columns
+//        .filterNot(_ == "label")
+//
+//      val finalDFAssemblerLR = new VectorAssembler()
+//        .setInputCols(columnsLR)
+//        .setOutputCol("features")
+//        .setHandleInvalid("skip")
+//
+//      val finalDF = finalDFAssemblerLR.transform(df4).select( $"features", $"label")
+//
+//      val columns: Array[String] = df4
+//        .columns
+//        .filterNot(_ == "label")
+//
+//      val finalDFAssembler = new VectorAssembler()
+//        .setInputCols(columns)
+//        .setOutputCol("features")
+//        .setHandleInvalid("keep")
+//
+//      val labeled = finalDFAssembler.transform(df4).rdd.map(row =>{
+//        val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
+//        LabeledPoint(
+//          row.getAs[Double]("label"),
+//          org.apache.spark.mllib.linalg.Vectors.fromML(denseVector)
+//        )
+//      }
+//      )
+//
+//      val prediction = labeled.map( x => (predictModel.predict(x.features), x.label))
+//
+//      val withoutLabel = df.drop("label").drop("size")
+//
+//      prediction.toDF("predict", "label").withColumn("id", monotonically_increasing_id())
+//        .join(withoutLabel.withColumn("id", monotonically_increasing_id()), Seq("id"))
+//        .drop("id")
+//        .withColumn("label", udf((elem: Double) => {
+//          if(elem == 1.0) true
+//          else false
+//        }).apply(col("predict")))
+//        .drop("predict")
+//        .coalesce(1) //So just a single part- file will be created
+//        .write.mode(SaveMode.Overwrite)
+//        .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+//        .option("header","true") //Write the header
+//        .csv("data/prediction")
+
+      LogisticRegressionPredictModel.LogisticRegressionPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
       println("Logistic regression model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
       //RandomForestPredictModel.RandomForestPredictModel(spark, df, sc)
     }else if(model == "rf"){
       val modelStartTime = System.nanoTime()
-      RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
+
+      val predictModel = RandomForestModel.load(sc, "data/randomForestModel")
+
+      val columns: Array[String] = df4
+        .columns
+        .filterNot(_ == "label")
+
+      val finalDFAssembler = new VectorAssembler()
+        .setInputCols(columns)
+        .setOutputCol("features")
+        .setHandleInvalid("keep")
+
+      val labeled = finalDFAssembler.transform(df4).rdd.map(row =>{
+        val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
+        LabeledPoint(
+          row.getAs[Double]("label"),
+          org.apache.spark.mllib.linalg.Vectors.fromML(denseVector)
+        )
+      }
+      )
+
+      val prediction = labeled.map( x => (predictModel.predict(x.features), x.label))
+
+      val withoutLabel = df.drop("label").drop("size")
+
+      prediction.toDF("predict", "label").withColumn("id", monotonically_increasing_id())
+        .join(withoutLabel.withColumn("id", monotonically_increasing_id()), Seq("id"))
+        .drop("id")
+        .withColumn("label", udf((elem: Double) => {
+          if(elem == 1.0) true
+          else false
+        }).apply(col("predict")))
+        .drop("predict")
+        .coalesce(1) //So just a single part- file will be created
+        .write.mode(SaveMode.Overwrite)
+        .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+        .option("header","true") //Write the header
+        .csv("data/prediction")
+
+      //RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
       println("Random forest model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
     }

@@ -45,6 +45,13 @@ object LogisticRegressionModel {
       .as[(Double, Double)]
       .rdd
 
+
+    println("Starting to save Naive Bayes model")
+    val modelStartTime = System.nanoTime()
+    lrModel.save("data/logisticRegressionModel")
+    val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+    println("[DONE] Naive Bayes model, elapsed time: "+(elapsedTimeModel - (elapsedTimeModel % 0.01))+"min")
+
     val metrics = new MulticlassMetrics(predictWithLabels)
     val bmetrics = new BinaryClassificationMetrics(predictWithLabels)
     //accuracy
