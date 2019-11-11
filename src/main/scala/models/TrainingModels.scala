@@ -1,11 +1,12 @@
 package models
 
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import etl.Etl
 
 object TrainingModels {
 
-  def trainModels(spark: SparkSession): Unit = {
+  def trainModels(spark: SparkSession, sc: SparkContext): Unit = {
 
     import spark.implicits._ // << add this after defining spark
 
@@ -37,6 +38,6 @@ object TrainingModels {
     val decisionTreeModel = DecisionTreeMod.method(datas, spark)
 
     // Save model
-    decisionTreeModel.save("data/DecisionTreeModel")
+    decisionTreeModel.save(sc, "data/DecisionTreeModel")
   }
 }
