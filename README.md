@@ -1,6 +1,6 @@
 # WI-project - Cortex Group
 
-The purpose of this project is to provide a click on an ad according to the information about users (RTB).
+The purpose of this project is to provide a click on ad prediction according to the information about users (RTB).
 The Cortex system takes a json file containing users as input data and produces a csv file containing the forecast result from a sample of the initial data.
 
 There are three models that can be used:
@@ -18,7 +18,7 @@ To reach the forecasting we have the following steps:
 
 ## How to use
 
-###Your input json file must be inside data folder
+### Your input json file must be inside the data folder
 
 Start sbt shell using
 * sbt

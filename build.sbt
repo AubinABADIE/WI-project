@@ -32,10 +32,3 @@ assemblyMergeStrategy in assembly := {
   case "reference.conf" => MergeStrategy.concat
   case _ => MergeStrategy.first
 }
-
-//Generate executable
-assemblyOption in assembly := (assemblyOption in assembly).value
-  .copy(prependShellScript = Some(defaultUniversalScript(shebang = false)))
-
-//Export to root dir
-assemblyOutputPath in assembly := file(baseDirectory.value.getAbsolutePath+"/clickPredict.jar")
