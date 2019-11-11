@@ -19,7 +19,7 @@ object Main extends App {
     var jsonFile = "data-students.json"
     var model = "rf" //rf
 
-    val message = "Usage: ./clickPredict jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample ./clickPredict data-students.json naive"
+    val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
 
     if(args.isEmpty) println(message)
     if(args.length == 2){
@@ -60,7 +60,7 @@ object Main extends App {
       .option("inferSchema", "true")
       .json("data/"+jsonFile)
       //.csv("data/exportCSVANOVA")
-      .limit(1000)
+      //.limit(1000)
 
     println("Starting to generate interests")
     var interestsStartTime = System.nanoTime()
@@ -238,7 +238,7 @@ object Main extends App {
 
       //RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Random forest model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+      println("Random forest prediction created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
     }
 
     val elapedStime = (System.nanoTime() - start) / 1e9

@@ -11,27 +11,7 @@ object RandomForestPredictModel {
   def RandomForestPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     import spark.implicits._
 
-//    val columns: Array[String] = dataFrame
-//      .columns
-//      .filterNot(_ == "label")
-//
-//    val finalDFAssembler = new VectorAssembler()
-//      .setInputCols(columns)
-//      .setOutputCol("features")
-//      .setHandleInvalid("skip")
-//
-//    val finalDF = finalDFAssembler.transform(dataFrame).select( $"features", $"label")
-//
-//    finalDF.show()
-//
-//    val datasets = finalDF
-//      .randomSplit(Array(0.8,0.2), seed = 42)
-//    val training = datasets(0).cache()
-//    val testing = datasets(1)
-
-
-//    //val featuresCols = Array("appOrSite", "city", "media", "network", "os", "publisher", "type", "user")
-      val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "publisher", "type", "i1","i2","i3","i4","i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
+    val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "publisher", "type", "i1","i2","i3","i4","i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
     val assembler = new VectorAssembler()
       .setInputCols(featuresCols)
       .setOutputCol("features")

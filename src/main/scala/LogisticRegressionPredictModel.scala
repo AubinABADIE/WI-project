@@ -6,8 +6,8 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
-object LogisticRegressionModel {
-  def LogisticRegressionModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
+object LogisticRegressionPredictModel{
+  def LogisticRegressionPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     import spark.implicits._
 
     val columns: Array[String] = dataFrame
