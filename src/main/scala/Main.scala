@@ -19,7 +19,7 @@ object Main extends App {
     var jsonFile = "data-students.json"
     var model = "rf" //rf
 
-    val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
+    val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression (unabled) --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
 
     if(args.isEmpty) println(message)
     if(args.length == 2){
@@ -139,8 +139,9 @@ object Main extends App {
         .csv("data/prediction")
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
       println("Prediction done, CSV exported, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"s")
-    }else if(model == "lr"){
-      val modelStartTime = System.nanoTime()
+    }else if(model == "lrError"){
+      println("Need to be fixed")
+      //val modelStartTime = System.nanoTime()
 //      val lr = new LogisticRegression()
 //      val predictModel = LogisticRegressionModel.load(sc, "data/logisticRegressionModel")
 //
@@ -191,10 +192,9 @@ object Main extends App {
 //        .option("header","true") //Write the header
 //        .csv("data/prediction")
 
-      LogisticRegressionPredictModel.LogisticRegressionPredictModel(spark, df4, sc)
-      val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Logistic regression model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
-      //RandomForestPredictModel.RandomForestPredictModel(spark, df, sc)
+      //LogisticRegressionPredictModel.LogisticRegressionPredictModel(spark, df4, sc)
+//      val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+//      println("Logistic regression model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
     }else if(model == "rf"){
       val modelStartTime = System.nanoTime()
 

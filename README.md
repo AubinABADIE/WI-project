@@ -5,7 +5,7 @@ The Cortex system takes a json file containing users as input data and produces 
 
 There are three models that can be used:
 
-1) Logistic Regression
+1) Logistic Regression [Unabled]
 2) Naive Bayes
 3) Random Forest
 
@@ -28,7 +28,7 @@ Launch the program using
 
 Where model can be:
 * _naive_ for Naive Bayes
-* _lr_ for Logistic Regression 
+* _lr_ for Logistic Regression [Unabled]
 * _rf_ for Random Forest 
 
 ## Requirements
