@@ -6,24 +6,24 @@ import NaiveBayesCleaning._
 import NaiveBayesPredictModel._
 import IntererestsCleaning._
 import LogisticRegressionModel._
-import org.apache.spark.ml.classification.LogisticRegression
-import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
-
 object Main extends App {
 
   override def main(args: Array[String]) {
 
     val start = System.nanoTime()
     var jsonFile = "data-students.json"
-    var model = "naive"
+    var model = "lr" //rf
 
-    if(args.isEmpty) println("Usage: ./jarFile jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* LogisticRegression --lr \n\t* RandomForest --rf")
+    val message = "Usage: ./clickPredict jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample ./clickPredict data-students.json naive"
+
+    if(args.isEmpty) println(message)
     if(args.length == 2){
       jsonFile = args(0)
       model = args(1)
     }else if (args.length == 1){
       jsonFile = args(0)
+    }else{
+      println(message)
     }
 
     println(s"Starting with $jsonFile file using the $model model")
@@ -96,16 +96,23 @@ object Main extends App {
 
     if(model == "naive"){
       println("Start to create model Naive Bayes")
-      var modelStartTime = System.nanoTime()
+      val modelStartTime = System.nanoTime()
       NaiveBayesPredictModel.NaiveBayerPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+      println("Naive Bayes model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
     }else if(model == "lr"){
-      //df.show()
 
-      //LogisticRegressionModel.LogisticRegressionModel(spark, df, sc)
+
+      val modelStartTime = System.nanoTime()
+      LogisticRegressionModel.LogisticRegressionModel(spark, df4, sc)
+      val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+      println("Logistic regression model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
       //RandomForestPredictModel.RandomForestPredictModel(spark, df, sc)
-
+    }else if(model == "rf"){
+      val modelStartTime = System.nanoTime()
+      RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
+      val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+      println("Random forest model created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
     }
 
     val elapedStime = (System.nanoTime() - start) / 1e9
@@ -114,7 +121,5 @@ object Main extends App {
 
 
     spark.stop()
-    //spark.close()
-
   }
 }

@@ -57,7 +57,7 @@ object NaiveBayesPredictModel {
     }
     )
 
-    val md = NaiveBayes
+
 
     val model = NaiveBayes.train(featuresLabelProportionTrain)
 

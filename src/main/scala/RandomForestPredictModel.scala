@@ -2,9 +2,10 @@ import org.apache.spark.SparkContext
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.mllib.tree.configuration.Strategy
 import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.sql.functions.{col, udf}
 
 object RandomForestPredictModel {
   def RandomForestPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
@@ -85,8 +86,6 @@ object RandomForestPredictModel {
 
     val testErr = labeledTest.map { point =>
       val prediction = model.predict(point.features)
-
-
       if (point.label == prediction) 1.0 else 0.0
 
     }.mean()
@@ -111,15 +110,24 @@ object RandomForestPredictModel {
     val auROC = bmetrics.areaUnderROC
     println(s"Area under ROC: $auROC")
 
-
-
-
-
-
-
     //println("Learned Random Forest:n" + model.toDebugString)
 
     println("Test Error = " + testErr)
+
+    predictedClassification.toDF("predict", "label")
+      .withColumn("label", udf((elem: Double) => {
+        if(elem == 1.0) true
+        else false
+      }).apply(col("label")))
+      .withColumn("predict", udf((elem: Double) => {
+        if(elem == 1.0) true
+        else false
+      }).apply(col("predict")))
+      .coalesce(1) //So just a single part- file will be created
+      .write.mode(SaveMode.Overwrite)
+      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+      .option("header","true") //Write the header
+      .csv("data/prediction")
 
   }
 }

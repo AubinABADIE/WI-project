@@ -3,7 +3,8 @@ import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
 object LogisticRegressionModel {
   def LogisticRegressionModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
@@ -20,12 +21,12 @@ object LogisticRegressionModel {
 
     val finalDF = finalDFAssembler.transform(dataFrame).select( $"features", $"label")
 
-    finalDF.show()
-
     val datasets = finalDF
       .randomSplit(Array(0.8,0.2), seed = 42)
     val training = datasets(0).cache()
     val testing = datasets(1)
+
+    println("Testing count: " + testing.count())
 
     //Model creation
     val lr = new LogisticRegression()
@@ -63,6 +64,23 @@ object LogisticRegressionModel {
     //Area under ROC
     val auROC = bmetrics.areaUnderROC
     println(s"Area under ROC: $auROC")
+
+
+    predictWithLabels.toDF("predict", "label")
+      .withColumn("label", udf((elem: Double) => {
+        if(elem == 1.0) true
+        else false
+      }).apply(col("label")))
+      .withColumn("predict", udf((elem: Double) => {
+        if(elem == 1.0) true
+        else false
+      }).apply(col("predict")))
+      .coalesce(1) //So just a single part- file will be created
+      .write.mode(SaveMode.Overwrite)
+      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+      .option("header","true") //Write the header
+      .csv("data/prediction")
+
   }
 
 }
