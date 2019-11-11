@@ -9,11 +9,11 @@ object NaiveBayesPredictModel {
   def NaiveBayerPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     import spark.implicits._
 
-    //val featuresCols = Array("appOrSite", "city", "media", "network", "os", "publisher", "type", "user")
-    val featuresCols = Array("exchange","appOrSite", "city", "media", "network", "os", "publisher", "type", "user", "i1","i2","i3","i4","i5","i6", "i7","i8","i9","i10","i11","i12","i13", "i14","i15","i16","i17","i18","i19", "i20","i21","i22","i23","i24","i25","i26")
+    val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "os", "publisher", "type", "user", "i1","i2","i3","i4","i5","i6", "i7","i8","i9","i10","i11","i12","i13", "i14","i15","i16","i17","i18","i19", "i20","i21","i22","i23","i24","i25","i26")
     val assembler = new VectorAssembler()
       .setInputCols(featuresCols)
       .setOutputCol("features")
+      .setHandleInvalid("skip")
 
     /**
       * Get original dataset and then split it 80% train 20% test
@@ -24,18 +24,18 @@ object NaiveBayesPredictModel {
       * Test the model with the 20% from original dataset
       */
 
-    //TestDF I will use later
-    val Array(trainDF, testDF) = dataFrame.randomSplit(Array(0.8, 0.2))
+    //TestDF will be used to test
+    val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.randomSplit(Array(0.8, 0.2))
 
     //Stratified sampling
-    val trueValue = trainDF.filter("label = true")
-    val falseValue = trainDF.filter("label = false").sample(0.030)
+    val trueValue = trainWithoutProportion.filter("label = true")
+    val falseValue = trainWithoutProportion.filter("label = false").sample(0.030)
 
     //Equal proportion
-    val stratifiedSampling = trueValue.union(falseValue)
+    val sameProportionSampleTrain = trueValue.union(falseValue)
 
     //omg this is terrible
-    val labeled = assembler.transform(stratifiedSampling).rdd.map(row =>{
+    val featuresLabelProportionTrain = assembler.transform(trainWithoutProportion).rdd.map(row =>{
       val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
       LabeledPoint(
         row.getAs[Double]("label"),
@@ -45,7 +45,7 @@ object NaiveBayesPredictModel {
     )
 
 
-    val labeledTest = assembler.transform(testDF).rdd.map(row =>{
+    val featuresLabelWithoutProportiondTest = assembler.transform(testWithoutProportion).rdd.map(row =>{
       val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
       LabeledPoint(
         row.getAs[Double]("label"),
@@ -54,106 +54,31 @@ object NaiveBayesPredictModel {
     }
     )
 
-    //val Array(trainingData, test) = labeled.randomSplit(Array(0.8, 0.2))
-    //trainingData.collect().take(10).foreach(println(_))
+    val model = NaiveBayes.train(featuresLabelProportionTrain)
+    val predictedClassification = featuresLabelWithoutProportiondTest.map( x => (model.predict(x.features), x.label))
 
-    //NaiveBayes model
-//    val model = NaiveBayes.train(trainingData)//, lambda = 1.0, modelType = "multinomial")
-//    val predictedClassification = test.map( x => (model.predict(x.features), x.label))
+    model.save(sc, "data/naiveModel")
 
-    val model = NaiveBayes.train(labeled)//, lambda = 1.0, modelType = "multinomial")
-    val predictedClassification = labeledTest.map( x => (model.predict(x.features), x.label))
     val metrics = new MulticlassMetrics(predictedClassification)
-//    val metrics = new BinaryClassificationMetrics(predictedClassification)
+    val bmetrics = new BinaryClassificationMetrics(predictedClassification)
 
-
-//    // Precision by threshold
-//    val precision = metrics.precisionByThreshold
-//    precision.foreach { case (t, p) =>
-//      println(s"Threshold: $t, Precision: $p")
-//    }
-//
-//    // Recall by threshold
-//    val recall = metrics.recallByThreshold
-//    recall.foreach { case (t, r) =>
-//      println(s"Threshold: $t, Recall: $r")
-//    }
-//
-//    // Precision-Recall Curve
-//    val PRC = metrics.pr
-//
-//    // F-measure
-//    val f1Score = metrics.fMeasureByThreshold
-//    f1Score.foreach { case (t, f) =>
-//      println(s"Threshold: $t, F-score: $f, Beta = 1")
-//    }
-//
-//    val beta = 0.5
-//    val fScore = metrics.fMeasureByThreshold(beta)
-//    f1Score.foreach { case (t, f) =>
-//      println(s"Threshold: $t, F-score: $f, Beta = 0.5")
-//    }
-//
-//    // AUPRC
-//    val auPRC = metrics.areaUnderPR
-//    println("Area under precision-recall curve = " + auPRC)
-//
-//    // Compute thresholds used in ROC and PR curves
-//    val thresholds = precision.map(_._1)
-//
-//    // ROC Curve
-//    val roc = metrics.roc
-//
-//    // AUROC
-//    val auROC = metrics.areaUnderROC
-//    println("Area under ROC = " + auROC)
-//    val confusionMatrix = metrics.confusionMatrix
-//    println("Confusion Matrix",confusionMatrix.asML)
-//
-//    val myModelStat=Seq(metrics.accuracy,metrics.weightedPrecision,metrics.weightedFMeasure,metrics.weightedRecall)
-//
-//    myModelStat.foreach(println(_))
-//
-//    metrics.labels.foreach(println(_))
-    //println("Labels" + metrics.labels.)
-
-
-    // Confusion matrix
-    println("Confusion matrix:")
-    println(metrics.confusionMatrix)
-
-    // Overall Statistics
+    //accuracy
     val accuracy = metrics.accuracy
-    println("Summary Statistics")
     println(s"Accuracy = $accuracy")
 
-    // Precision by label
+    //precision and recall
     val labels = metrics.labels
-    labels.foreach { l =>
-      println(s"Precision($l) = " + metrics.precision(l))
-    }
+    labels.foreach(label => {
+      println(s"Precision($label) = " + metrics.precision(label))
+      println(s"Recall($label) = " + metrics.recall(label))
+    })
 
-    // Recall by label
-    labels.foreach { l =>
-      println(s"Recall($l) = " + metrics.recall(l))
-    }
+    //confusion matrix
+    println("Confusion matrix:\n" + metrics.confusionMatrix)
 
-    // False positive rate by label
-    labels.foreach { l =>
-      println(s"FPR($l) = " + metrics.falsePositiveRate(l))
-    }
-
-    // F-measure by label
-    labels.foreach { l =>
-      println(s"F1-Score($l) = " + metrics.fMeasure(l))
-    }
-
-    // Weighted stats
-    println(s"Weighted precision: ${metrics.weightedPrecision}")
-    println(s"Weighted recall: ${metrics.weightedRecall}")
-    println(s"Weighted F1 score: ${metrics.weightedFMeasure}")
-    println(s"Weighted false positive rate: ${metrics.weightedFalsePositiveRate}")
-
+    //Area under ROC
+    val auROC = bmetrics.areaUnderROC
+    println(s"Area under ROC: $auROC")
 
   }
 }

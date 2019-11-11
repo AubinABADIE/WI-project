@@ -1,5 +1,6 @@
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.functions._
 
 object NaiveBayesCleaning {
   /**
@@ -172,8 +173,76 @@ object NaiveBayesCleaning {
     val exchange = media
       .withColumn("exchange", udf((elem: String) => exchangeMap(elem)).apply(col("exchange")))
 
-    exchange
+
+    /**
+      * timestamp cleaning to Naive Bayes
+      *
+      * 0.0 => night 0-6
+      * 1.0 => morning 6-12
+      * 2.0 => afternoon 13-17
+      * 3.0 => evening 18-0
+      *
+      */
+    val timestamp = exchange
+      .withColumn("Time", to_timestamp(from_unixtime(col("Timestamp"))))
+      .withColumn("Date", date_format(col("Time"), "yyyy-MM-dd"))
+      .withColumn("EventTime", date_format(col("Time"), "HH:mm:ss"))
+      .withColumn("Hour", date_format(col("EventTime"), "HH"))
+      .withColumn("timestamp", udf((elem: String) => {
+        elem.toInt match {
+          case x if 0 until 6 contains x => 0.0
+          case x if 6 until 12 contains x => 1.0
+          case x if 12 until 17 contains x => 3.0
+          case x if 17 until 24 contains x => 4.0
+          case _ => 5.0
+        }
+      }).apply(col("Hour"))).drop("Time").drop("EventTime").drop("Hour").drop("Date")
+
+    /**
+      * impid cleaning to Naive Bayes
+      */
+    val impidMap = timestamp
+      .select("impid")
+      .distinct()
+      .collect()
+      .map(element => element.get(0))
+      .zip(Stream from 1)
+      .map(mediaTuple => mediaTuple._1 -> mediaTuple._2.toDouble)
+      .toMap
+
+    val impid = timestamp
+      .withColumn("impid", udf((elem: String) => impidMap(elem)).apply(col("impid")))
 
 
+    val size1 = impid.withColumn("size", col("size").cast("String"))
+    val size = size1.withColumn("size", udf((elem: String) =>
+
+      elem match {
+        case "[380, 214]" => 0.0
+        case "[358, 201]" => 0.0
+        case "[343, 193]" => 0.0
+        case "[288, 162]" => 0.0
+        case "[291, 164]" => 0.0
+        case "[300, 169]" => 0.0
+        case "[569, 320]" => 0.0
+        case "[600, 350]" => 0.0
+        case "[328, 185]" => 0.0
+        case "[640, 360]" => 0.0
+        case "[306, 172]" => 0.0
+        case "[1280, 720]" => 0.0
+        case "[320, 480]" => 1.0
+        case "[325, 183]" => 2.0
+        case "[320, 50]" => 2.0
+        case "[320, 250]" => 2.0
+        case "[300, 250]" => 2.0
+        case "[480, 320]" => 3.0
+        case "[610, 390]" => 3.0
+        case "[500, 300]" => 4.0
+        case "[768, 1024]" => 5.0
+        case _ => 6.0
+      }
+    ).apply(col("size")))
+
+    size
   }
 }

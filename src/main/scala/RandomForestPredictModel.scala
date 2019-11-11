@@ -8,14 +8,25 @@ import org.apache.spark.mllib.tree.RandomForest
 object RandomForestPredictModel {
   def RandomForestPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     //val featuresCols = Array("appOrSite", "city", "media", "network", "os", "publisher", "type", "user")
-    val featuresCols = Array("exchange", "appOrSite", "city", "media", "network", "os", "publisher", "type", "user", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19", "i20", "i21", "i22", "i23", "i24", "i25", "i26")
+    val featuresCols = Array("bidfloor","exchange", "appOrSite", "city", "media", "network", "os", "publisher", "type", "user", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10", "i11", "i12", "i13", "i14", "i15", "i16", "i17", "i18", "i19", "i20", "i21", "i22", "i23", "i24", "i25", "i26")
     val assembler = new VectorAssembler()
       .setInputCols(featuresCols)
       .setOutputCol("features")
+      .setHandleInvalid("skip")
 
+
+    //TestDF I will use later
+    val Array(trainDF, testDF) = dataFrame.randomSplit(Array(0.8, 0.2))
+
+    //Stratified sampling
+    val trueValue = trainDF.filter("label = true")
+    val falseValue = trainDF.filter("label = false").sample(0.030)
+
+    //Equal proportion
+    val stratifiedSampling = trueValue.union(falseValue)
 
     //omg this is terrible
-    val labeled = assembler.transform(dataFrame).rdd.map(row =>{
+    val labeled = assembler.transform(stratifiedSampling).rdd.map(row =>{
       val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
       LabeledPoint(
         row.getAs[Double]("label"),
@@ -24,21 +35,32 @@ object RandomForestPredictModel {
     }
     )
 
-    val Array(trainingData, test) = labeled.randomSplit(Array(0.7, 0.3))
+
+    labeled.saveAsTextFile("data/features.txt")
+
+    val labeledTest = assembler.transform(testDF).rdd.map(row =>{
+      val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
+      LabeledPoint(
+        row.getAs[Double]("label"),
+        org.apache.spark.mllib.linalg.Vectors.fromML(denseVector)
+      )
+    }
+    )
+
+    //val Array(trainingData, test) = labeled.randomSplit(Array(0.7, 0.3))
 
     //Train forest model
     val treeStrategy = Strategy.defaultStrategy("Classification")
 
-    val numTrees = 3 // Use more in practice.
+    val numTrees = 10 // Use more in practice.
 
     val featureSubsetStrategy = "auto" // Let the algorithm choose.
 
-    val model = RandomForest.trainClassifier(trainingData,
-
+    val model = RandomForest.trainClassifier(labeled,
       treeStrategy, numTrees, featureSubsetStrategy, seed = 12345)
     // Evaluate model on test instances and compute test error
 
-    val testErr = test.map { point =>
+    val testErr = labeledTest.map { point =>
 
       val prediction = model.predict(point.features)
 
@@ -46,10 +68,13 @@ object RandomForestPredictModel {
 
     }.mean()
 
-    println("Test Error = " + testErr)
+
+
 
 
     println("Learned Random Forest:n" + model.toDebugString)
+
+    println("Test Error = " + testErr)
 
   }
 }
