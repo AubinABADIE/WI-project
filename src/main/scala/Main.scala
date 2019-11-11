@@ -1,3 +1,5 @@
+import java.nio.file.{Files, Paths}
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.log4j.{Level, Logger}
@@ -26,6 +28,10 @@ object Main extends App {
       println(message)
     }
 
+    if(!Files.exists(Paths.get("data/"+jsonFile))){
+      println("File "+ jsonFile + "does not exists")
+    }
+
     println(s"Starting with $jsonFile file using the $model model")
 
     //Ignores logs that aren't errors
@@ -50,12 +56,9 @@ object Main extends App {
       .option("delimiter", ",")
       .option("inferSchema", "true")
       .json("data/"+jsonFile)
-        //.csv("data/exportCSVANOVA")
-        //.drop("interests")
-      .limit(1000)
-
-
-      //.json("data/"+jsonFile)
+      //.csv("data/exportCSVANOVA")
+      //.drop("interests")
+      //.limit(1000)
 
     println("Starting to generate interests")
     var interestsStartTime = System.nanoTime()

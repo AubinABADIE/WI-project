@@ -38,4 +38,4 @@ assemblyOption in assembly := (assemblyOption in assembly).value
   .copy(prependShellScript = Some(defaultUniversalScript(shebang = false)))
 
 //Export to root dir
-assemblyOutputPath in assembly := file(baseDirectory.value.getAbsolutePath+"/clickPredict")
+assemblyOutputPath in assembly := file(baseDirectory.value.getAbsolutePath+"/clickPredict.jar")
