@@ -26,7 +26,7 @@ object LogisticRegressionPredictModel{
 
     val finalDF = finalDFAssembler.transform(dataFrame).select( $"features", $"label")
 
-    val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
+    val fractions = Map(1.0 -> 1.0, 0.0 -> 1.0)
     val datasets = finalDF.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
       //finalDF.randomSplit(Array(0.8,0.2), seed = 36L)
     val training = datasets(0).cache()
@@ -50,15 +50,14 @@ object LogisticRegressionPredictModel{
     //.setRegParam(0.01)
     //.setFamily("binomial")
     //.setThreshold(0.5)
+    val lrModel = lr.fit(stratifiedSampling)
 
-    //val lrModel = lr.fit(stratifiedSampling)
-
-    val pipeline = new Pipeline().setStages(Array(lr))
-
-    val lrModel = pipeline.fit(stratifiedSampling)
+//    val pipeline = new Pipeline().setStages(Array(lr))
+//
+//    val lrModel = pipeline.fit(stratifiedSampling)
 
 
-//    lrModel.write.overwrite().save("data/LRModel")
+    lrModel.write.overwrite().save("data/LRModel")
 
     val predict = lrModel.transform(testing)
     val predictWithLabels = predict
@@ -92,22 +91,6 @@ object LogisticRegressionPredictModel{
     //Area under ROC
     val auROC = bmetrics.areaUnderROC
     println(s"Area under ROC: $auROC")
-
-
-    predictWithLabels.toDF("predict", "label")
-      .withColumn("label", udf((elem: Double) => {
-        if(elem == 1.0) true
-        else false
-      }).apply(col("label")))
-      .withColumn("predict", udf((elem: Double) => {
-        if(elem == 1.0) true
-        else false
-      }).apply(col("predict")))
-      .coalesce(1) //So just a single part- file will be created
-      .write.mode(SaveMode.Overwrite)
-      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
-      .option("header","true") //Write the header
-      .csv("data/prediction")
 
   }
 

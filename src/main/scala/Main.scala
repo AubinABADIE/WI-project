@@ -16,7 +16,7 @@ object Main extends App {
 
     val start = System.nanoTime()
     var jsonFile = "data-students.json"
-    var model = "rf" //rf
+    var model = "lr" //rf
 
     val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
 
@@ -59,7 +59,7 @@ object Main extends App {
       .option("inferSchema", "true")
       .json("data/"+jsonFile)
       //.csv("data/exportCSV")
-      //.limit(10)
+      .limit(10)
 
     println("Starting to generate interests")
     val interestsStartTime = System.nanoTime()
@@ -106,8 +106,8 @@ object Main extends App {
 //    val df4 = df
 //    RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
 //    LogisticRegressionPredictModel.LogisticRegressionPredictModel(spark, df4, sc)
-//    val df4 = df
 //    NaiveBayesPredictModel.NaiveBayerPredictModel(spark, df4, sc)
+//    sys.exit()
 
     if(model == "naive"){
       println("Start to create predictions with Naive Bayes model")
@@ -200,7 +200,7 @@ object Main extends App {
 
       //LogisticRegressionPredictModel.LogisticRegressionPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Logistic regression predictions created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+      println("Logistic regression predictions created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"s")
     }else if(model == "rf"){
       println("Start to create predictions with Random Forest model")
       val modelStartTime = System.nanoTime()
@@ -245,7 +245,7 @@ object Main extends App {
 
       //RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
       val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-      println("Random forest prediction DONE, CSV created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"ms")
+      println("Random forest prediction DONE, CSV created, elapsed time: "+ (elapsedTimeModel - (elapsedTimeModel % 0.01))+"s")
     }
 
     val elapedStime = (System.nanoTime() - start) / 1e9
