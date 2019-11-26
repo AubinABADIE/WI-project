@@ -59,7 +59,7 @@ object Main extends App {
       .option("inferSchema", "true")
       .json("data/"+jsonFile)
       //.csv("data/exportCSV")
-      .limit(10)
+      //.limit(10)
 
     println("Starting to generate interests")
     val interestsStartTime = System.nanoTime()
