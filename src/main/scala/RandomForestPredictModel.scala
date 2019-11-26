@@ -12,15 +12,31 @@ object RandomForestPredictModel {
     import spark.implicits._
 
     //val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "publisher", "type", "i1","i2","i3","i4","i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
-    val featuresCols = Array("timestamp", "size", "appOrSite", "city", "media", "network", "type", "os", "i1","i2","i3","i4","i5", "i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
+//    val featuresCols = Array("timestamp", "size", "appOrSite", "city", "media", "network", "type", "os", "i1","i2","i3","i4","i5", "i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
+//    val assembler = new VectorAssembler()
+//      .setInputCols(featuresCols)
+//      .setOutputCol("features")
+//      //.setHandleInvalid("skip")
+
+
+    val columns: Array[String] = dataFrame
+      .columns
+      .filterNot(_ == "label")
+      .filterNot(_ == "impid")
+      .filterNot(_ == "bidfloor")
+      .filterNot(_ == "exchange")
+      .filterNot(_ == "publisher")
     val assembler = new VectorAssembler()
-      .setInputCols(featuresCols)
+      .setInputCols(columns)
       .setOutputCol("features")
-      //.setHandleInvalid("skip")
+    //.setHandleInvalid("keep")
+
 
     //TestDF I will use later
-    val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
-    val Array(trainDF, testDF) = dataFrame.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
+//    val fractions = Map(1.0 -> 1.0, 0.0 -> 1.0)
+//    val Array(trainDF, testDF) = dataFrame.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
+
+    val Array(trainDF, testDF) = dataFrame.randomSplit(Array(0.8, 0.2))
 
     //Stratified sampling
     val trueValue = trainDF.filter("label = true")
@@ -57,7 +73,7 @@ object RandomForestPredictModel {
 
     val model = RandomForest.trainClassifier(labeled, treeStrategy, numTrees, featureSubsetStrategy, seed = 12345)
 
-    model.save(sc, "data/randomForestModel")
+    //model.save(sc, "data/randomForestModel")
 
     // Evaluate model on test instances and compute test error
     val predictedClassification = labeledTest.map( x => (model.predict(x.features), x.label))

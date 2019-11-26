@@ -36,12 +36,12 @@ object NaiveBayesPredictModel {
       */
 
     //TestDF will be used to test
-    //val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.randomSplit(Array(0.8, 0.2))
-    val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
+//    val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.randomSplit(Array(0.8, 0.2))
+    val fractions = Map(1.0 -> 1.0, 0.0 -> 1.0)
     val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
 
-    System.out.println(trainWithoutProportion.count())
-    System.out.println(testWithoutProportion.count())
+    System.out.println(trainWithoutProportion.count() + "where " + trainWithoutProportion.filter("label = true").count() + " is true")
+    System.out.println(testWithoutProportion.count() + "where " + testWithoutProportion.filter("label = true").count() + " is true")
 
 
     //Stratified sampling
@@ -51,7 +51,6 @@ object NaiveBayesPredictModel {
     //Equal proportion
     val sameProportionSampleTrain = trueValue.union(falseValue)
 
-    //omg this is terrible
     val featuresLabelProportionTrain = assembler.transform(sameProportionSampleTrain).rdd.map(row =>{
       val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
       LabeledPoint(
@@ -81,7 +80,7 @@ object NaiveBayesPredictModel {
 
     println("Starting to save Naive Bayes model")
     val modelStartTime = System.nanoTime()
-   // model.save(sc, "data/naiveModel")
+    model.save(sc, "data/naiveModel")
     val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
     println("[DONE] Naive Bayes model, elapsed time: "+(elapsedTimeModel - (elapsedTimeModel % 0.01))+"min")
 
@@ -108,32 +107,6 @@ object NaiveBayesPredictModel {
     val auROC = bmetrics.areaUnderROC
     println(s"Area under ROC: $auROC")
 
-//    predictedClassification.toDF("predict", "label")
-//      .withColumn("label", udf((elem: Double) => {
-//        if(elem == 1.0) true
-//        else false
-//    }).apply(col("label")))
-//      .withColumn("predict", udf((elem: Double) => {
-//        if(elem == 1.0) true
-//        else false
-//      }).apply(col("predict")))
-//      .coalesce(1) //So just a single part- file will be created
-//          .write.mode(SaveMode.Overwrite)
-//          .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
-//          .option("header","true") //Write the header
-//          .csv("data/prediction")
-
-    //predictedClassification.saveAsTextFile("data/filename.csv")
-
-//    // write to file:
-//    new PrintWriter("filename.csv") { write(csv); close() }
-
-//    predictedClassification
-//      .coalesce(1)
-//      .write
-//      .option("header","true")
-//      .mode("overwrite")
-//      .csv("prediction")
 
   }
 }

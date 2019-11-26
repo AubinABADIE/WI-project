@@ -28,7 +28,7 @@ object LogisticRegressionPredictModel{
 
     val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
     val datasets = finalDF.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
-      //finalDF.randomSplit(Array(0.8,0.2), seed = 42)
+      //finalDF.randomSplit(Array(0.8,0.2), seed = 36L)
     val training = datasets(0).cache()
     val testing = datasets(1)
 
@@ -58,7 +58,7 @@ object LogisticRegressionPredictModel{
     val lrModel = pipeline.fit(stratifiedSampling)
 
 
-    lrModel.write.overwrite().save("data/LRModel")
+//    lrModel.write.overwrite().save("data/LRModel")
 
     val predict = lrModel.transform(testing)
     val predictWithLabels = predict

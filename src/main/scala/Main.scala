@@ -18,7 +18,7 @@ object Main extends App {
     var jsonFile = "data-students.json"
     var model = "rf" //rf
 
-    val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression (unabled) --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
+    val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
 
     if(args.isEmpty) println(message)
     if(args.length == 2){
@@ -80,11 +80,11 @@ object Main extends App {
 
     val elapsedTimeCleaning = (System.nanoTime() - cleaningStartTime) / 1e9
     println("Cleaning DONE, elapsed time: "+ (elapsedTimeCleaning - (elapsedTimeCleaning % 0.01))+"s")
-//
-//    /**
-//      * After ANOVA drop the following columns
-//      * user
-//      */
+
+    /**
+      * After ANOVA drop the following columns
+      * user
+      */
     val df4 = df3.drop("user", "interests")
 
     /**
@@ -102,6 +102,8 @@ object Main extends App {
     /**
       * Generate models
       */
+
+//    val df4 = df
 //    RandomForestPredictModel.RandomForestPredictModel(spark, df4, sc)
 //    LogisticRegressionPredictModel.LogisticRegressionPredictModel(spark, df4, sc)
 //    val df4 = df
