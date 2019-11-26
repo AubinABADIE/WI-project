@@ -1,5 +1,5 @@
 import org.apache.spark.SparkContext
-import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
@@ -11,15 +11,16 @@ object RandomForestPredictModel {
   def RandomForestPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     import spark.implicits._
 
-    val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "publisher", "type", "i1","i2","i3","i4","i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
+    //val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "publisher", "type", "i1","i2","i3","i4","i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
+    val featuresCols = Array("timestamp", "size", "appOrSite", "city", "media", "network", "type", "os", "i1","i2","i3","i4","i5", "i6","i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
     val assembler = new VectorAssembler()
       .setInputCols(featuresCols)
       .setOutputCol("features")
-      .setHandleInvalid("skip")
-
+      //.setHandleInvalid("skip")
 
     //TestDF I will use later
-    val Array(trainDF, testDF) = dataFrame.randomSplit(Array(0.8, 0.2))
+    val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
+    val Array(trainDF, testDF) = dataFrame.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
 
     //Stratified sampling
     val trueValue = trainDF.filter("label = true")
@@ -28,8 +29,7 @@ object RandomForestPredictModel {
     //Equal proportion
     val stratifiedSampling = trueValue.union(falseValue)
 
-    //omg this is terrible
-    val labeled = assembler.transform(trainDF).rdd.map(row =>{
+    val labeled = assembler.transform(stratifiedSampling).rdd.map(row =>{
       val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
       LabeledPoint(
         row.getAs[Double]("label"),
@@ -48,17 +48,16 @@ object RandomForestPredictModel {
     }
     )
 
-    //val Array(trainingData, test) = labeled.randomSplit(Array(0.7, 0.3))
-
     //Train forest model
     val treeStrategy = Strategy.defaultStrategy("Classification")
 
-    val numTrees = 10 // Use more in practice.
+    val numTrees = 64 // Use more in practice.
 
     val featureSubsetStrategy = "auto" // Let the algorithm choose.
 
     val model = RandomForest.trainClassifier(labeled, treeStrategy, numTrees, featureSubsetStrategy, seed = 12345)
 
+    model.save(sc, "data/randomForestModel")
 
     // Evaluate model on test instances and compute test error
     val predictedClassification = labeledTest.map( x => (model.predict(x.features), x.label))
@@ -67,7 +66,6 @@ object RandomForestPredictModel {
     val testErr = labeledTest.map { point =>
       val prediction = model.predict(point.features)
       if (point.label == prediction) 1.0 else 0.0
-
     }.mean()
 
     val metrics = new MulticlassMetrics(predictedClassification)
@@ -94,20 +92,20 @@ object RandomForestPredictModel {
 
     println("Test Error = " + testErr)
 
-    predictedClassification.toDF("predict", "label")
-      .withColumn("label", udf((elem: Double) => {
-        if(elem == 1.0) true
-        else false
-      }).apply(col("label")))
-      .withColumn("predict", udf((elem: Double) => {
-        if(elem == 1.0) true
-        else false
-      }).apply(col("predict")))
-      .coalesce(1) //So just a single part- file will be created
-      .write.mode(SaveMode.Overwrite)
-      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
-      .option("header","true") //Write the header
-      .csv("data/prediction")
+//    predictedClassification.toDF("predict", "label")
+//      .withColumn("label", udf((elem: Double) => {
+//        if(elem == 1.0) true
+//        else false
+//      }).apply(col("label")))
+//      .withColumn("predict", udf((elem: Double) => {
+//        if(elem == 1.0) true
+//        else false
+//      }).apply(col("predict")))
+//      .coalesce(1) //So just a single part- file will be created
+//      .write.mode(SaveMode.Overwrite)
+//      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+//      .option("header","true") //Write the header
+//      .csv("data/prediction")
 
   }
 }

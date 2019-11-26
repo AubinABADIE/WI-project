@@ -12,11 +12,19 @@ object NaiveBayesPredictModel {
   def NaiveBayerPredictModel(spark: SparkSession, dataFrame: DataFrame, sc : SparkContext) : Unit = {
     import spark.implicits._
 
-    val featuresCols = Array("timestamp", "size", "impid", "bidfloor","exchange","appOrSite", "city", "media", "network", "publisher", "type", "i1","i2","i3","i4","i6", "i7","i8","i9","i11","i12","i13", "i14","i16","i17","i19","i24","i25","i26")
+    val columns: Array[String] = dataFrame
+      .columns
+      .filterNot(_ == "label")
+      .filterNot(_ == "impid")
+      .filterNot(_ == "bidfloor")
+      .filterNot(_ == "exchange")
+      .filterNot(_ == "publisher")
     val assembler = new VectorAssembler()
-      .setInputCols(featuresCols)
+      .setInputCols(columns)
       .setOutputCol("features")
-      .setHandleInvalid("skip")
+      //.setHandleInvalid("keep")
+
+
 
     /**
       * Get original dataset and then split it 80% train and 20% test
@@ -28,7 +36,13 @@ object NaiveBayesPredictModel {
       */
 
     //TestDF will be used to test
-    val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.randomSplit(Array(0.8, 0.2))
+    //val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.randomSplit(Array(0.8, 0.2))
+    val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
+    val Array(trainWithoutProportion, testWithoutProportion) = dataFrame.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
+
+    System.out.println(trainWithoutProportion.count())
+    System.out.println(testWithoutProportion.count())
+
 
     //Stratified sampling
     val trueValue = trainWithoutProportion.filter("label = true")
@@ -38,7 +52,7 @@ object NaiveBayesPredictModel {
     val sameProportionSampleTrain = trueValue.union(falseValue)
 
     //omg this is terrible
-    val featuresLabelProportionTrain = assembler.transform(trainWithoutProportion).rdd.map(row =>{
+    val featuresLabelProportionTrain = assembler.transform(sameProportionSampleTrain).rdd.map(row =>{
       val denseVector = row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense
       LabeledPoint(
         row.getAs[Double]("label"),
@@ -65,11 +79,11 @@ object NaiveBayesPredictModel {
 
     val predictedClassification = featuresLabelWithoutProportiondTest.map( x => (model.predict(x.features), x.label))
 
-//    println("Starting to save Naive Bayes model")
-//    val modelStartTime = System.nanoTime()
-//    model.save(sc, "data/naiveModel")
-//    val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-//    println("[DONE] Naive Bayes model, elapsed time: "+(elapsedTimeModel - (elapsedTimeModel % 0.01))+"min")
+    println("Starting to save Naive Bayes model")
+    val modelStartTime = System.nanoTime()
+   // model.save(sc, "data/naiveModel")
+    val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+    println("[DONE] Naive Bayes model, elapsed time: "+(elapsedTimeModel - (elapsedTimeModel % 0.01))+"min")
 
 
 
@@ -94,20 +108,20 @@ object NaiveBayesPredictModel {
     val auROC = bmetrics.areaUnderROC
     println(s"Area under ROC: $auROC")
 
-    predictedClassification.toDF("predict", "label")
-      .withColumn("label", udf((elem: Double) => {
-        if(elem == 1.0) true
-        else false
-    }).apply(col("label")))
-      .withColumn("predict", udf((elem: Double) => {
-        if(elem == 1.0) true
-        else false
-      }).apply(col("predict")))
-      .coalesce(1) //So just a single part- file will be created
-          .write.mode(SaveMode.Overwrite)
-          .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
-          .option("header","true") //Write the header
-          .csv("data/prediction")
+//    predictedClassification.toDF("predict", "label")
+//      .withColumn("label", udf((elem: Double) => {
+//        if(elem == 1.0) true
+//        else false
+//    }).apply(col("label")))
+//      .withColumn("predict", udf((elem: Double) => {
+//        if(elem == 1.0) true
+//        else false
+//      }).apply(col("predict")))
+//      .coalesce(1) //So just a single part- file will be created
+//          .write.mode(SaveMode.Overwrite)
+//          .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false") //Avoid creating of crc files
+//          .option("header","true") //Write the header
+//          .csv("data/prediction")
 
     //predictedClassification.saveAsTextFile("data/filename.csv")
 

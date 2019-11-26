@@ -1,4 +1,5 @@
 import org.apache.spark.SparkContext
+import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
@@ -13,18 +14,30 @@ object LogisticRegressionPredictModel{
     val columns: Array[String] = dataFrame
       .columns
       .filterNot(_ == "label")
+      .filterNot(_ == "impid")
+      .filterNot(_ == "bidfloor")
+      .filterNot(_ == "exchange")
+      .filterNot(_ == "publisher")
 
     val finalDFAssembler = new VectorAssembler()
       .setInputCols(columns)
       .setOutputCol("features")
-      .setHandleInvalid("skip")
+      //.setHandleInvalid("keep")
 
     val finalDF = finalDFAssembler.transform(dataFrame).select( $"features", $"label")
 
-    val datasets = finalDF
-      .randomSplit(Array(0.8,0.2), seed = 42)
+    val fractions = Map(1.0 -> 0.5, 0.0 -> 0.5)
+    val datasets = finalDF.stat.sampleBy("label", fractions, 36L).randomSplit(Array(0.8, 0.2))
+      //finalDF.randomSplit(Array(0.8,0.2), seed = 42)
     val training = datasets(0).cache()
     val testing = datasets(1)
+
+    //Stratified sampling
+    val trueValue = training.filter("label = true")
+    val falseValue = training.filter("label = false").sample(0.030)
+
+    //Equal proportion
+    val stratifiedSampling = trueValue.union(falseValue)
 
     println("Testing count: " + testing.count())
 
@@ -33,11 +46,19 @@ object LogisticRegressionPredictModel{
       .setLabelCol("label")
       .setFeaturesCol("features")
       .setMaxIter(1000)
+      .setRegParam(0.3)
     //.setRegParam(0.01)
     //.setFamily("binomial")
     //.setThreshold(0.5)
 
-    val lrModel = lr.fit(training)
+    //val lrModel = lr.fit(stratifiedSampling)
+
+    val pipeline = new Pipeline().setStages(Array(lr))
+
+    val lrModel = pipeline.fit(stratifiedSampling)
+
+
+    lrModel.write.overwrite().save("data/LRModel")
 
     val predict = lrModel.transform(testing)
     val predictWithLabels = predict
@@ -46,11 +67,11 @@ object LogisticRegressionPredictModel{
       .rdd
 
 
-    println("Starting to save Naive Bayes model")
-    val modelStartTime = System.nanoTime()
-    lrModel.save("data/logisticRegressionModel")
-    val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
-    println("[DONE] Naive Bayes model, elapsed time: "+(elapsedTimeModel - (elapsedTimeModel % 0.01))+"min")
+//    println("Starting to save Naive Bayes model")
+//    val modelStartTime = System.nanoTime()
+//    lrModel.save("data/logisticRegressionModel")
+//    val elapsedTimeModel = (System.nanoTime() - modelStartTime) / 1e9
+//    println("[DONE] Naive Bayes model, elapsed time: "+(elapsedTimeModel - (elapsedTimeModel % 0.01))+"min")
 
     val metrics = new MulticlassMetrics(predictWithLabels)
     val bmetrics = new BinaryClassificationMetrics(predictWithLabels)
