@@ -16,7 +16,7 @@ object Main extends App {
 
     val start = System.nanoTime()
     var jsonFile = "data-students.json"
-    var model = "lr" //rf
+    var model = "rf" //rf
 
     val message = "Usage: run jsonFile [option]\nOptions: \n\t* Naive Bayes --naive\n\t* Logistic Regression --lr \n\t* Random Forest --rf\n\nExample run data-students.json naive"
 
